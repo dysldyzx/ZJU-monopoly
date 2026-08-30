@@ -172,9 +172,11 @@ function renderGame(state) {
   });
   playerInfoDiv.innerHTML = infoHtml;
 
-  // 构建玩家颜色映射
+  // 构建玩家颜色映射（确保 color 有默认值）
   const playersMap = {};
-  state.players.forEach(p => { playersMap[String(p.id)] = p.color; });
+  state.players.forEach(p => {
+    playersMap[String(p.id)] = p.color || '#333';
+  });
   const tilesWithOwnerColor = state.tiles.map(t => ({
     ...t,
     ownerColor: t.owner !== null ? (playersMap[String(t.owner)] || '#333') : null

@@ -266,7 +266,7 @@ class GameState {
   // 获取可发送给客户端的精简状态
   getPublicState() {
     return {
-      players: this.players.map(p => ({
+      players: this.players.map((p, i) => ({
         id: p.id,
         name: p.name,
         cash: p.cash,
@@ -274,7 +274,7 @@ class GameState {
         properties: p.properties,
         inJail: p.inJail,
         bankrupt: p.bankrupt,
-        color: p.color
+        color: p.color || ['#FF4444','#4444FF','#44AA44','#FFAA00'][i]
       })),
       tiles: this.tiles.map(t => ({
         type: t.type,

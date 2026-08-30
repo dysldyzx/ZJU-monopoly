@@ -106,7 +106,10 @@ class Board {
 
     // 所有者底部颜色条
     if (tile.owner !== null && tile.type !== 'start' && tile.type !== 'jail' && tile.type !== 'free') {
-      const ownerColor = tile.ownerColor || playersMap[String(tile.owner)] || '#333';
+      // 优先使用 main.js 预映射的 ownerColor，fallback 到 playersMap，最后用深灰
+      const ownerColor = (tile.ownerColor && tile.ownerColor !== 'null' && tile.ownerColor !== 'undefined')
+        ? tile.ownerColor
+        : (playersMap[String(tile.owner)] || '#333');
       ctx.fillStyle = ownerColor;
       ctx.fillRect(x, y + h - 5, w, 5);
     }
