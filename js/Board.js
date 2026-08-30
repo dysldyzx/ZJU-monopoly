@@ -89,7 +89,7 @@ class Board {
     });
 
     // 绘制中央信息区
-    this.drawCenter(ctx, dice, logs, currentPlayerId, players);
+    this.drawCenter(ctx, dice, logs, currentPlayerId, players, tiles);
   }
 
   drawTile(ctx, tile, x, y, w, h, playersMap) {
@@ -221,52 +221,79 @@ class Board {
   }
 
   // 绘制中央区域：骰子和事件日志
-  drawCenter(ctx, dice, logs, currentPlayerId, players) {
+    // 绘制中央区域：骰子、事件日志和玩家资产
+  drawCenter(ctx, dice, logs, currentPlayerId, players, tiles) {
     const cx = this.centerX;
     const cy = this.centerY;
-    const boxWidth = 200;
-    const boxHeight = 120;
+    const boxWidth = 220;
+    const boxHeight = 300; // 加高以容纳资产列表
     const x = cx - boxWidth / 2;
     const y = cy - boxHeight / 2;
 
     // 半透明背景
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.fillRect(x, y, boxWidth, boxHeight);
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, boxWidth, boxHeight);
 
-    // 骰子区域
+    // 骰子区域（上方）
     ctx.fillStyle = '#000';
     ctx.font = 'bold 16px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(`骰子: ${dice[0]} + ${dice[1]}`, cx, y + 8);
 
-    // 分隔线
+    // 分隔线1
     ctx.beginPath();
     ctx.moveTo(x + 10, y + 32);
     ctx.lineTo(x + boxWidth - 10, y + 32);
     ctx.stroke();
 
-    // 事件日志（最多显示4条）
+    // 事件日志（最多显示3条，为资产留出空间）
     ctx.font = '12px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    const logLines = logs.slice(0, 4);
+    const logLines = logs.slice(0, 3);
     logLines.forEach((log, i) => {
-      const msg = log.message.substring(0, 18); // 截取前18个字符，避免过长
+      const msg = log.message.substring(0, 18);
       ctx.fillText(msg, x + 12, y + 38 + i * 18);
     });
 
-    // 当前玩家指示（显示玩家名称）
+    // 分隔线2
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y + 92);
+    ctx.lineTo(x + boxWidth - 10, y + 92);
+    ctx.stroke();
+
+    // 玩家资产列表（从 y+100 开始）
+    ctx.font = '15px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    players.forEach((player, index) => {
+      if (player.bankrupt) return; // 跳过破产玩家
+      const rowY = y + 100 + index * 26; // 每行高度26px，避免重叠
+      // 玩家名（带颜色）
+      ctx.fillStyle = player.color || '#000';
+      ctx.fillText(player.name, x + 12, rowY);
+      // 现金
+      ctx.fillStyle = '#000';
+      ctx.fillText(`现金:${player.cash}`, x + 80, rowY);
+      // 地产索引列表（按棋盘序号排序）
+      const sortedProps = [...player.properties].sort((a, b) => a - b);
+      const propStr = sortedProps.length > 0 ? sortedProps.join(',') : '无';
+      ctx.fillText(`地产:[${propStr}]`, x + 12, rowY + 13);
+    });
+
+    // 当前玩家指示（放在资产下方）
     if (currentPlayerId) {
       const currentPlayer = players.find(p => p.id === currentPlayerId);
       const displayName = currentPlayer ? currentPlayer.name : currentPlayerId;
       ctx.fillStyle = '#555';
       ctx.font = 'bold 12px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 22);
+      ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 24);
     }
   }
 }

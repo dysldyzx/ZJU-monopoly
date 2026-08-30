@@ -19,11 +19,11 @@ const BOARD_DATA = [
   { type: 'start', name: '紫金港南大门' },
 
   // 1：棕色组 - 生活区
-  { type: 'property', name: '紫云碧峰学园', price: 600, rent: 50, color: '#8B4513' },
+  { type: 'property', name: '紫云碧峰学园', price: 600, rent: 50, color: '#d87935ff' },
   // 2：机会
   { type: 'chance', name: '校园卡' },
   // 3：棕色组 - 生活区
-  { type: 'property', name: '丹阳青溪学园', price: 600, rent: 50, color: '#8B4513' },
+  { type: 'property', name: '丹阳青溪学园', price: 600, rent: 50, color: '#d87935ff' },
 
   // 4：税
   { type: 'tax', name: '缴学费', amount: 1000 },
