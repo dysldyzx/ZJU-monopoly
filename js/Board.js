@@ -14,41 +14,26 @@ class Board {
   calculatePositions() {
     const positions = [];
     const step = this.tileSize;
-    const sideLen = this.tilesPerSide; // 9
-    // 四个角的索引：右下=0，左下=10，左上=20，右上=30
-    // 路径顺时针：从右下角出发，沿底边向左走到左下角（索引1~9），然后左边向上到左上角（索引11~19），
-    // 顶边向右到右上角（索引21~29），右边向下回到右下角（索引31~39）
+    const sideLen = this.tilesPerSide;
     for (let i = 0; i < 40; i++) {
-        let x, y;
-        if (i === 0) { // 右下角
-            x = this.margin + (sideLen + 1) * step;
-            y = this.margin + (sideLen + 1) * step;
-        } else if (i >= 1 && i <= 9) { // 底边（从右下角向左下角，即从右到左）
-            x = this.margin + (sideLen + 1 - i) * step;
-            y = this.margin + (sideLen + 1) * step;
-        } else if (i === 10) { // 左下角
-            x = this.margin;
-            y = this.margin + (sideLen + 1) * step;
-        } else if (i >= 11 && i <= 19) { // 左边（从左下角向左上角，即从下到上）
-            x = this.margin;
-            y = this.margin + (sideLen + 1 - (i - 10)) * step;
-        } else if (i === 20) { // 左上角
-            x = this.margin;
-            y = this.margin;
-        } else if (i >= 21 && i <= 29) { // 顶边（从左上角向右上角，即从左到右）
-            x = this.margin + (i - 20) * step;
-            y = this.margin;
-        } else if (i === 30) { // 右上角
-            x = this.margin + (sideLen + 1) * step;
-            y = this.margin;
-        } else if (i >= 31 && i <= 39) { // 右边（从右上角向右下角，即从上到下）
-            x = this.margin + (sideLen + 1) * step;
-            y = this.margin + (i - 30) * step;
-        }
-        positions.push({ x, y });
+      let x, y;
+      if (i >= 0 && i < 10) { // 底边（从左到右）
+        x = this.margin + i * step;
+        y = this.margin + (sideLen + 1) * step;
+      } else if (i >= 10 && i < 20) { // 左边（从下到上）
+        x = this.margin;
+        y = this.margin + (sideLen - (i - 10)) * step;
+      } else if (i >= 20 && i < 30) { // 顶边（从右到左）
+        x = this.margin + (sideLen - (i - 20)) * step;
+        y = this.margin;
+      } else { // 右边（从上到下）
+        x = this.margin + (sideLen + 1) * step;
+        y = this.margin + (i - 30) * step;
+      }
+      positions.push({ x, y });
     }
     return positions;
-}
+  }
 
   // 主绘制方法
   draw(players, tiles, dice, logs, currentPlayerId) {
@@ -104,37 +89,15 @@ class Board {
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
 
-    // 所有者底部颜色条（使用玩家映射）
-    if (tile.owner !== null) {
-        const ownerColor = tile.ownerColor || playersMap[String(tile.owner)] || '#333';
-        ctx.fillStyle = ownerColor;
-        ctx.fillRect(x, y + h - 5, w, 5);
+    // 所有者底部颜色条
+    if (tile.owner !== null && tile.type !== 'start' && tile.type !== 'jail' && tile.type !== 'free') {
+      const ownerColor = tile.ownerColor || playersMap[String(tile.owner)] || '#333';
+      ctx.fillStyle = ownerColor;
+      ctx.fillRect(x, y + h - 5, w, 5);
     }
 
-    // 显示名称（自动分行）
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 10px Microsoft YaHei';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const lines = this.wrapText(ctx, tile.name, w - 4, 2); // 最多两行
-    let lineY = y + 2;
-    lines.forEach(line => {
-      ctx.fillText(line, x + w / 2, lineY);
-      lineY += 10;
-    });
-
-    // 显示价格/费用
-    ctx.font = '9px Arial';
-    ctx.textBaseline = 'top';
-    if (tile.type === 'property' || tile.type === 'transport' || tile.type === 'utility') {
-      ctx.fillStyle = '#000';
-      ctx.fillText('$' + (tile.price || ''), x + w / 2, y + 22);
-    } else if (tile.type === 'tax') {
-      ctx.fillText('缴费', x + w / 2, y + 18);
-      ctx.fillText('$' + tile.amount, x + w / 2, y + 28);
-    } else if (tile.type === 'chance' || tile.type === 'destiny') {
-      ctx.fillText(tile.type === 'chance' ? '机会' : '命运', x + w / 2, y + 20);
-    }
+    // 绘制文字内容
+    this.drawTileText(ctx, tile, x, y, w, h);
 
     // 显示等级（自习室/宿舍图标）
     if (tile.type === 'property' && tile.level > 0) {
@@ -144,10 +107,49 @@ class Board {
     // 抵押状态显示“押”字
     if (tile.mortgaged) {
       ctx.fillStyle = 'rgba(255,0,0,0.7)';
-      ctx.font = 'bold 20px Microsoft YaHei';
+      ctx.font = 'bold 20px "PingFang SC", "SimHei", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('押', x + w / 2, y + h / 2);
+    }
+  }
+
+  // 绘制格子内文字（名称和价格）
+  drawTileText(ctx, tile, x, y, w, h) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    // 设置字体（美观黑体，非微软雅黑）
+    ctx.font = '12px "PingFang SC", "SimHei", "Heiti SC", sans-serif';
+
+    // 名称自动换行，最多两行
+    const maxTextWidth = w - 4;
+    const nameLines = this.wrapText(ctx, tile.name, maxTextWidth, 2);
+    // 名称起始 y：上方留 5px（顶部空段），行距 14px（12px 字体 + 2px 间距）
+    let nameY = y + 5;
+    ctx.fillStyle = '#000';
+    nameLines.forEach(line => {
+      ctx.fillText(line, x + w / 2, nameY);
+      nameY += 14; // 行距
+    });
+
+    // 价格/费用信息（显示在名称下方，留出 3px 间隙）
+    ctx.font = '10px "PingFang SC", "SimHei", sans-serif';
+    ctx.fillStyle = '#000';
+    let infoY = y + 5 + nameLines.length * 14 + 3; // 名称总高度 + 3px 间隙
+    if (tile.type === 'property') {
+      ctx.fillText('$' + tile.price, x + w / 2, infoY);
+    } else if (tile.type === 'transport') {
+      ctx.fillText('校车', x + w / 2, infoY);
+      ctx.fillText('$' + tile.price, x + w / 2, infoY + 12);
+    } else if (tile.type === 'utility') {
+      ctx.fillText('公共', x + w / 2, infoY);
+      ctx.fillText('$' + tile.price, x + w / 2, infoY + 12);
+    } else if (tile.type === 'tax') {
+      ctx.fillText('缴费', x + w / 2, infoY);
+      ctx.fillText('$' + tile.amount, x + w / 2, infoY + 12);
+    } else if (tile.type === 'chance' || tile.type === 'destiny') {
+      ctx.fillText(tile.type === 'chance' ? '机会' : '命运', x + w / 2, infoY);
     }
   }
 
@@ -156,7 +158,7 @@ class Board {
     ctx.fillStyle = '#fff';
     ctx.fillRect(x - 6, y - 6, 12, 12);
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 9px Arial';
+    ctx.font = 'bold 9px "PingFang SC", "SimHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (level === 1) ctx.fillText('自', x, y);
@@ -180,7 +182,7 @@ class Board {
       }
     }
     if (currentLine && lines.length < maxLines) lines.push(currentLine);
-    if (lines.length === 0) lines.push(text.substring(0, Math.floor(maxWidth / 10)));
+    if (lines.length === 0) lines.push(text.substring(0, Math.floor(maxWidth / 12))); // 适应新字体宽度
     return lines;
   }
 
@@ -218,24 +220,25 @@ class Board {
 
     // 骰子区域
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 16px Arial';
+    ctx.font = 'bold 16px "PingFang SC", "SimHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(`骰子: ${dice[0]} + ${dice[1]}`, cx, y + 5);
+    ctx.fillText(`骰子: ${dice[0]} + ${dice[1]}`, cx, y + 8);
 
     // 分隔线
     ctx.beginPath();
-    ctx.moveTo(x + 10, y + 30);
-    ctx.lineTo(x + boxWidth - 10, y + 30);
+    ctx.moveTo(x + 10, y + 32);
+    ctx.lineTo(x + boxWidth - 10, y + 32);
     ctx.stroke();
 
     // 事件日志（最多显示4条）
-    ctx.font = '12px Microsoft YaHei';
+    ctx.font = '12px "PingFang SC", "SimHei", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     const logLines = logs.slice(0, 4);
     logLines.forEach((log, i) => {
-      ctx.fillText(log.message.substring(0, 20), x + 10, y + 35 + i * 20);
+      const msg = log.message.substring(0, 18); // 截取前18个字符，避免过长
+      ctx.fillText(msg, x + 12, y + 38 + i * 18);
     });
 
     // 当前玩家指示（显示玩家名称）
@@ -243,9 +246,9 @@ class Board {
       const currentPlayer = players.find(p => p.id === currentPlayerId);
       const displayName = currentPlayer ? currentPlayer.name : currentPlayerId;
       ctx.fillStyle = '#555';
-      ctx.font = 'bold 12px STKaiti';
+      ctx.font = 'bold 12px "PingFang SC", "SimHei", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 20);
+      ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 22);
     }
   }
 }
