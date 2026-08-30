@@ -105,10 +105,10 @@ class Board {
     ctx.strokeRect(x, y, w, h);
 
     // 所有者底部颜色条（使用玩家映射）
-    if (tile.owner !== null && tile.type !== 'start' && tile.type !== 'jail' && tile.type !== 'free') {
-      const ownerColor = tile.ownerColor || playersMap[String(tile.owner)] || '#333';
-      ctx.fillStyle = ownerColor;
-      ctx.fillRect(x, y + h - 5, w, 5);
+    if (tile.owner !== null) {
+        const ownerColor = tile.ownerColor || playersMap[String(tile.owner)] || '#333';
+        ctx.fillStyle = ownerColor;
+        ctx.fillRect(x, y + h - 5, w, 5);
     }
 
     // 显示名称（自动分行）
@@ -243,7 +243,7 @@ class Board {
       const currentPlayer = players.find(p => p.id === currentPlayerId);
       const displayName = currentPlayer ? currentPlayer.name : currentPlayerId;
       ctx.fillStyle = '#555';
-      ctx.font = 'bold 12px Microsoft YaHei';
+      ctx.font = 'bold 12px STKaiti';
       ctx.textAlign = 'center';
       ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 20);
     }

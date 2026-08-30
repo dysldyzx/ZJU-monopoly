@@ -9,15 +9,22 @@
 <body>
   <!-- 房间设置面板 -->
   <div id="setup-panel">
-    <h2>浙大富翁 - 联机对战</h2>
-    <button id="createRoomBtn">创建房间</button>
-    <br><br>
-    <input type="text" id="roomCodeInput" placeholder="输入房间号" maxlength="4">
-    <button id="joinRoomBtn">加入房间</button>
-    <br><br>
-    <div id="room-info"></div>
-    <button id="startGameBtn" style="display:none;">开始游戏（房主）</button>
-  </div>
+  <h2>浙大富翁 - 联机对战</h2>
+  <label>选择玩家人数：</label>
+  <select id="playerCountSelect">
+    <option value="2">2 人</option>
+    <option value="3">3 人</option>
+    <option value="4">4 人</option>
+  </select>
+  <br><br>
+  <button id="createRoomBtn">创建房间</button>
+  <br><br>
+  <input type="text" id="roomCodeInput" placeholder="输入房间号" maxlength="4">
+  <button id="joinRoomBtn">加入房间</button>
+  <br><br>
+  <div id="room-info"></div>
+  <button id="startGameBtn" disabled>开始游戏（房主）</button>
+</div>
 
   <!-- 游戏主体 -->
   <div id="game-container" style="display:none;">

@@ -24,6 +24,10 @@ const mortgageBtn = document.getElementById('mortgageBtn');
 const redeemBtn = document.getElementById('redeemBtn');
 const actionButtonsDiv = document.getElementById('action-buttons');
 
+// 尝试获取玩家数量选择框（若 HTML 中不存在，则使用默认值 2）
+const playerCountSelect = document.getElementById('playerCountSelect');
+const defaultPlayerCount = 2;
+
 // 初始化棋盘渲染
 board = new Board(document.getElementById('boardCanvas'));
 
@@ -32,7 +36,8 @@ let selectedTileIndex = null;
 
 // 创建房间
 createRoomBtn.addEventListener('click', () => {
-  socket.emit('create_room');
+  const count = playerCountSelect ? parseInt(playerCountSelect.value) : defaultPlayerCount;
+  socket.emit('create_room', count);
 });
 
 // 加入房间
@@ -88,19 +93,17 @@ redeemBtn.addEventListener('click', () => {
   }
 });
 
-// 棋盘点击事件：选中格子，并可能弹出操作提示
+// 棋盘点击事件：选中格子
 document.getElementById('boardCanvas').addEventListener('click', (e) => {
   if (!currentState) return;
   const rect = e.target.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
-  // 查找点击的格子索引
   for (let i = 0; i < 40; i++) {
     const pos = board.positions[i];
     if (mouseX >= pos.x && mouseX < pos.x + board.tileSize &&
         mouseY >= pos.y && mouseY < pos.y + board.tileSize) {
       selectedTileIndex = i;
-      // 高亮选中的格子（可暂时不处理）
       break;
     }
   }
@@ -111,19 +114,30 @@ socket.on('room_created', (data) => {
   myRoomCode = data.roomCode;
   isHost = true;
   roomInfoDiv.innerHTML = `房间号：${data.roomCode}<br>等待玩家加入...`;
+  // 开始按钮初始禁用，等待人数满足后启用
+  startGameBtn.disabled = true;
   startGameBtn.style.display = 'inline-block';
 });
 
 // 监听房间更新
 socket.on('room_update', (data) => {
-  if (myRoomCode) {
-    let html = `房间号：${myRoomCode}<br>玩家：`;
-    data.players.forEach(p => {
-      html += `<div style="color:${p.color}">${p.name}</div>`;
-    });
-    roomInfoDiv.innerHTML = html;
-    if (isHost && data.players.length >= 2) startGameBtn.style.display = 'inline-block';
-    else startGameBtn.style.display = 'none';
+  if (!myRoomCode) return;
+  let html = `房间号：${myRoomCode}<br>玩家：`;
+  data.players.forEach(p => {
+    html += `<div style="color:${p.color}">${p.name}</div>`;
+  });
+  roomInfoDiv.innerHTML = html;
+
+  // 判断是否房主且人数达到目标
+  const hostId = data.host;
+  const targetCount = data.targetCount || 2;
+  const isCurrentHost = hostId === socket.id;
+  const canStart = isCurrentHost && data.players.length === targetCount;
+  startGameBtn.style.display = isCurrentHost ? 'inline-block' : 'none';
+  startGameBtn.disabled = !canStart;
+  if (isCurrentHost && !canStart) {
+    // 可选：在按钮旁显示提示
+    startGameBtn.title = `等待玩家加入（${data.players.length}/${targetCount}）`;
   }
 });
 
@@ -141,11 +155,8 @@ socket.on('game_state', (state) => {
 
 // 需要玩家操作（购买提示）
 socket.on('action_required', (data) => {
-  if (data.playerId === socket.id) {
-    buyBtn.style.display = 'inline-block';
-    skipBtn.style.display = 'inline-block';
-    messageDiv.textContent = '是否购买该地产？';
-  }
+  // 这个事件现在可以忽略，因为按钮显示由 game_state 控制
+  // 但保留以防后续需要
 });
 
 // 错误处理
@@ -161,19 +172,21 @@ function renderGame(state) {
   });
   playerInfoDiv.innerHTML = infoHtml;
 
-  // 绘制棋盘（传入骰子和日志）
-  // 绘制棋盘（传入骰子和日志）
-const playersMap = {};
-state.players.forEach(p => { playersMap[String(p.id)] = p.color; });
-const tilesWithOwnerColor = state.tiles.map(t => ({
-  ...t,
-  ownerColor: t.owner !== null ? (playersMap[String(t.owner)] || '#333') : null
-}));
-board.draw(state.players, tilesWithOwnerColor, state.dice, state.logs, state.players[state.currentPlayerIndex].name);
+  // 构建玩家颜色映射
+  const playersMap = {};
+  state.players.forEach(p => { playersMap[String(p.id)] = p.color; });
+  const tilesWithOwnerColor = state.tiles.map(t => ({
+    ...t,
+    ownerColor: t.owner !== null ? (playersMap[String(t.owner)] || '#333') : null
+  }));
+
+  // 绘制棋盘
+  board.draw(state.players, tilesWithOwnerColor, state.dice, state.logs, state.players[state.currentPlayerIndex].name);
 
   // 按钮显示控制
-  const isMyTurn = state.players[state.currentPlayerIndex].id === socket.id;
-  const myPlayer = state.players.find(p => p.id === socket.id);
+  const myId = socket.id;
+  const isMyTurn = state.players[state.currentPlayerIndex].id === myId;
+  const myPlayer = state.players.find(p => p.id === myId);
 
   // 默认隐藏所有操作按钮
   rollBtn.style.display = 'none';
@@ -183,28 +196,31 @@ board.draw(state.players, tilesWithOwnerColor, state.dice, state.logs, state.pla
   mortgageBtn.style.display = 'none';
   redeemBtn.style.display = 'none';
 
+  // 游戏结束
   if (state.phase === 'GAME_OVER') {
     messageDiv.textContent = `游戏结束！${state.winner || ''} 获胜！`;
     return;
   }
 
+  // 根据状态显示按钮
   if (isMyTurn) {
-    if (state.phase === 'ROLL_DICE' && !state.waitingForAction) {
+    if (state.waitingForAction) {
+      // 等待购买决策
+      buyBtn.style.display = 'inline-block';
+      skipBtn.style.display = 'inline-block';
+    } else if (state.phase === 'ROLL_DICE') {
+      // 可以掷骰子
       rollBtn.style.display = 'inline-block';
-      // 显示建造、抵押、赎回按钮（如果拥有地产）
+      // 显示建造/抵押/赎回（如果拥有地产）
       if (myPlayer && myPlayer.properties.length > 0) {
         buildBtn.style.display = 'inline-block';
         mortgageBtn.style.display = 'inline-block';
         redeemBtn.style.display = 'inline-block';
       }
-    } else if (state.waitingForAction) {
-      // 等待购买决策
-      buyBtn.style.display = 'inline-block';
-      skipBtn.style.display = 'inline-block';
     }
   }
 
-  // 显示消息
+  // 显示最新日志
   if (state.logs && state.logs.length > 0) {
     messageDiv.textContent = state.logs[0].message;
   }

@@ -106,11 +106,11 @@ const BOARD_DATA = [
   // 36：命运
   { type: 'destiny', name: '考试周' },
   // 37：深蓝组 - 标志性建筑
-  { type: 'property', name: '月牙楼', price: 3500, rent: 500, color: '#00008B' },
+  { type: 'property', name: '月牙楼', price: 3500, rent: 500, color: '#6495ED' },
   // 38：税
   { type: 'tax', name: '缴住宿费', amount: 2000 },
   // 39：深蓝组 - 标志性建筑
-  { type: 'property', name: '纳米楼', price: 4000, rent: 600, color: '#00008B' },
+  { type: 'property', name: '纳米楼', price: 4000, rent: 600, color: '#6495ED' },
 ];
 
 const CHANCE_CARDS = [
@@ -185,7 +185,7 @@ class GameState {
       inJail: false,
       jailTurns: 0,
       bankrupt: false,
-      color: p.color || ['#FF4444','#4b4bffff','#44AA44','#FFAA00'][i]
+      color: p.color || ['#FF4444','#4444FF','#44AA44','#FFAA00'][i]
     }));
     this.tiles = BOARD_DATA.map(tile => ({...tile, owner: null, level: 0, mortgaged: false}));
     this.currentPlayerIndex = 0;
@@ -340,6 +340,8 @@ function handleLanding(game, player) {
   if (!game.waitingForAction && game.phase !== 'GAME_OVER') {
     endTurn(game);
   }
+  // 确保广播最终状态
+  broadcastGameState(game);
 }
 
 function handleProperty(game, player) {
@@ -349,6 +351,8 @@ function handleProperty(game, player) {
       game.waitingForAction = true;
       game.pendingTileIndex = player.position;
       broadcastAction(game);
+      // 立即广播状态，以便客户端显示购买按钮
+      broadcastGameState(game);
     } else {
       game.addLog(`${player.name} 资金不足，无法购买 ${tile.name}`);
       game.waitingForAction = false;
@@ -369,6 +373,7 @@ function handleTransport(game, player) {
       game.waitingForAction = true;
       game.pendingTileIndex = player.position;
       broadcastAction(game);
+      broadcastGameState(game);
     } else {
       game.waitingForAction = false;
     }
@@ -393,6 +398,7 @@ function handleUtility(game, player) {
       game.waitingForAction = true;
       game.pendingTileIndex = player.position;
       broadcastAction(game);
+      broadcastGameState(game);
     } else {
       game.waitingForAction = false;
     }
@@ -498,30 +504,49 @@ function broadcastGameState(game) {
 io.on('connection', (socket) => {
   console.log('新连接:', socket.id);
 
-  socket.on('create_room', () => {
+  socket.on('create_room', (targetCount) => {
     const roomCode = generateRoomCode();
-    rooms[roomCode] = { code: roomCode, host: socket.id, players: [], game: null, gameStarted: false };
+    rooms[roomCode] = {
+      code: roomCode,
+      host: socket.id,
+      players: [],
+      game: null,
+      gameStarted: false,
+      targetCount: targetCount || 2   // 目标人数，默认2
+    };
     socket.join(roomCode);
     rooms[roomCode].players.push({ id: socket.id, name: '玩家1', color: '#FF4444' });
     socket.emit('room_created', { roomCode });
-    io.to(roomCode).emit('room_update', { players: rooms[roomCode].players.map(p => ({id:p.id, name:p.name, color:p.color})), host: rooms[roomCode].host });
+    io.to(roomCode).emit('room_update', {
+      players: rooms[roomCode].players.map(p => ({id:p.id, name:p.name, color:p.color})),
+      host: rooms[roomCode].host,
+      targetCount: rooms[roomCode].targetCount
+    });
   });
 
   socket.on('join_room', (roomCode) => {
     const room = rooms[roomCode];
     if (!room) { socket.emit('error', '房间不存在'); return; }
     if (room.gameStarted) { socket.emit('error', '游戏已开始'); return; }
-    if (room.players.length >= 4) { socket.emit('error', '房间已满'); return; }
+    if (room.players.length >= room.targetCount) { socket.emit('error', '房间已满'); return; }
     socket.join(roomCode);
     const color = ['#4444FF','#44AA44','#FFAA00'][room.players.length-1] || '#FF44FF';
     room.players.push({ id: socket.id, name: `玩家${room.players.length+1}`, color });
-    io.to(roomCode).emit('room_update', { players: room.players.map(p => ({id:p.id, name:p.name, color:p.color})), host: room.host });
+    io.to(roomCode).emit('room_update', {
+      players: room.players.map(p => ({id:p.id, name:p.name, color:p.color})),
+      host: room.host,
+      targetCount: room.targetCount
+    });
   });
 
   socket.on('start_game', (roomCode) => {
     const room = rooms[roomCode];
     if (!room || room.host !== socket.id) return;
-    if (room.players.length < 2) { socket.emit('error', '至少需要2名玩家'); return; }
+    if (room.players.length !== room.targetCount) {
+      socket.emit('error', `等待所有玩家加入（需要${room.targetCount}人）`);
+      return;
+    }
+    if (room.gameStarted) return;
     room.gameStarted = true;
     room.game = new GameState(room.players);
     room.game.roomCode = roomCode;
@@ -655,7 +680,11 @@ io.on('connection', (socket) => {
       const idx = room.players.findIndex(p => p.id === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
-        io.to(code).emit('room_update', { players: room.players.map(p => ({id:p.id, name:p.name, color:p.color})), host: room.host });
+        io.to(code).emit('room_update', {
+          players: room.players.map(p => ({id:p.id, name:p.name, color:p.color})),
+          host: room.host,
+          targetCount: room.targetCount
+        });
         if (room.players.length === 0) delete rooms[code];
       }
     }
