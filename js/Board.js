@@ -14,19 +14,34 @@ class Board {
   calculatePositions() {
     const positions = [];
     const step = this.tileSize;
-    const sideLen = this.tilesPerSide;
+    const sideLen = this.tilesPerSide; // 9
+    // 四个角的索引：右下=0，左下=10，左上=20，右上=30
+    // 路径顺时针：从右下角出发，沿底边向左走到左下角（索引1~9），然后左边向上到左上角（索引11~19），
+    // 顶边向右到右上角（索引21~29），右边向下回到右下角（索引31~39）
     for (let i = 0; i < 40; i++) {
       let x, y;
-      if (i >= 0 && i < 10) { // 底边（从左到右）
-        x = this.margin + i * step;
+      if (i === 0) { // 右下角
+        x = this.margin + (sideLen + 1) * step;
         y = this.margin + (sideLen + 1) * step;
-      } else if (i >= 10 && i < 20) { // 左边（从下到上）
+      } else if (i >= 1 && i <= 9) { // 底边（从右到左）
+        x = this.margin + (sideLen + 1 - i) * step;
+        y = this.margin + (sideLen + 1) * step;
+      } else if (i === 10) { // 左下角
         x = this.margin;
-        y = this.margin + (sideLen - (i - 10)) * step;
-      } else if (i >= 20 && i < 30) { // 顶边（从右到左）
-        x = this.margin + (sideLen - (i - 20)) * step;
+        y = this.margin + (sideLen + 1) * step;
+      } else if (i >= 11 && i <= 19) { // 左边（从下到上）
+        x = this.margin;
+        y = this.margin + (sideLen + 1 - (i - 10)) * step;
+      } else if (i === 20) { // 左上角
+        x = this.margin;
         y = this.margin;
-      } else { // 右边（从上到下）
+      } else if (i >= 21 && i <= 29) { // 顶边（从左到右）
+        x = this.margin + (i - 20) * step;
+        y = this.margin;
+      } else if (i === 30) { // 右上角
+        x = this.margin + (sideLen + 1) * step;
+        y = this.margin;
+      } else if (i >= 31 && i <= 39) { // 右边（从上到下）
         x = this.margin + (sideLen + 1) * step;
         y = this.margin + (i - 30) * step;
       }
@@ -107,7 +122,7 @@ class Board {
     // 抵押状态显示“押”字
     if (tile.mortgaged) {
       ctx.fillStyle = 'rgba(255,0,0,0.7)';
-      ctx.font = 'bold 20px "PingFang SC", "SimHei", sans-serif';
+      ctx.font = 'bold 20px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('押', x + w / 2, y + h / 2);
@@ -120,23 +135,23 @@ class Board {
     ctx.textBaseline = 'top';
 
     // 设置字体（美观黑体，非微软雅黑）
-    ctx.font = '12px "PingFang SC", "SimHei", "Heiti SC", sans-serif';
+    ctx.font = '12px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
 
     // 名称自动换行，最多两行
     const maxTextWidth = w - 4;
     const nameLines = this.wrapText(ctx, tile.name, maxTextWidth, 2);
-    // 名称起始 y：上方留 5px（顶部空段），行距 14px（12px 字体 + 2px 间距）
-    let nameY = y + 5;
+    // 名称起始 y：上方留 3px 空段（用户要求）
+    let nameY = y + 3;
     ctx.fillStyle = '#000';
     nameLines.forEach(line => {
       ctx.fillText(line, x + w / 2, nameY);
-      nameY += 14; // 行距
+      nameY += 14; // 行距：12px 字体 + 2px 间距
     });
 
     // 价格/费用信息（显示在名称下方，留出 3px 间隙）
-    ctx.font = '10px "PingFang SC", "SimHei", sans-serif';
+    ctx.font = '10px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.fillStyle = '#000';
-    let infoY = y + 5 + nameLines.length * 14 + 3; // 名称总高度 + 3px 间隙
+    let infoY = y + 3 + nameLines.length * 14 + 3; // 名称总高度 + 3px 间隙
     if (tile.type === 'property') {
       ctx.fillText('$' + tile.price, x + w / 2, infoY);
     } else if (tile.type === 'transport') {
@@ -158,7 +173,7 @@ class Board {
     ctx.fillStyle = '#fff';
     ctx.fillRect(x - 6, y - 6, 12, 12);
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 9px "PingFang SC", "SimHei", sans-serif';
+    ctx.font = 'bold 9px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (level === 1) ctx.fillText('自', x, y);
@@ -182,7 +197,7 @@ class Board {
       }
     }
     if (currentLine && lines.length < maxLines) lines.push(currentLine);
-    if (lines.length === 0) lines.push(text.substring(0, Math.floor(maxWidth / 12))); // 适应新字体宽度
+    if (lines.length === 0) lines.push(text.substring(0, Math.floor(maxWidth / 12)));
     return lines;
   }
 
@@ -220,7 +235,7 @@ class Board {
 
     // 骰子区域
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 16px "PingFang SC", "SimHei", sans-serif';
+    ctx.font = 'bold 16px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(`骰子: ${dice[0]} + ${dice[1]}`, cx, y + 8);
@@ -232,7 +247,7 @@ class Board {
     ctx.stroke();
 
     // 事件日志（最多显示4条）
-    ctx.font = '12px "PingFang SC", "SimHei", sans-serif';
+    ctx.font = '12px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     const logLines = logs.slice(0, 4);
@@ -246,7 +261,7 @@ class Board {
       const currentPlayer = players.find(p => p.id === currentPlayerId);
       const displayName = currentPlayer ? currentPlayer.name : currentPlayerId;
       ctx.fillStyle = '#555';
-      ctx.font = 'bold 12px "PingFang SC", "SimHei", sans-serif';
+      ctx.font = 'bold 12px "PingFang SC", "SimHei", "Heiti SC", "Noto Sans SC", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`当前玩家: ${displayName}`, cx, y + boxHeight - 22);
     }
