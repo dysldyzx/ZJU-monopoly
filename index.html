@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>浙大富翁 - 联机版</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 房间设置面板 -->
+  <div id="setup-panel">
+    <h2>浙大富翁 - 联机对战</h2>
+    <button id="createRoomBtn">创建房间</button>
+    <br><br>
+    <input type="text" id="roomCodeInput" placeholder="输入房间号" maxlength="4">
+    <button id="joinRoomBtn">加入房间</button>
+    <br><br>
+    <div id="room-info"></div>
+    <button id="startGameBtn" style="display:none;">开始游戏（房主）</button>
+  </div>
+
+  <!-- 游戏主体 -->
+  <div id="game-container" style="display:none;">
+    <canvas id="boardCanvas" width="800" height="800"></canvas>
+    <div id="panel">
+      <h2>浙大富翁</h2>
+      <div id="player-info"></div>
+      <div id="dice-result"></div>
+      <div id="action-buttons">
+        <button id="rollBtn">掷骰子</button>
+        <button id="buyBtn" style="display:none;">购买地产</button>
+        <button id="buildBtn" style="display:none;">建造自习室</button>
+        <button id="skipBtn" style="display:none;">跳过购买</button>
+        <button id="buildBtn" style="display:none;">建造房屋</button>
+        <button id="mortgageBtn" style="display:none;">抵押地产</button>
+        <button id="redeemBtn" style="display:none;">赎回</button>
+      </div>
+      <div id="message"></div>
+    </div>
+  </div>
+
+  <!-- 加载 Socket.io 客户端 -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- 只加载 Board.js 和 main.js -->
+  <script src="js/Board.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
